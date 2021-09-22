@@ -7,7 +7,7 @@ from db import SQLite
 from settings import SHOPS, BRANDS_URLS
 
 SKIP = False  # set False to check all tests
-# more cases relevant only in aug- sep 2021
+# more cases relevant only in sep- oct 2021
 
 
 @skipIf(SKIP, 'skip parse_main')
@@ -176,6 +176,7 @@ class TestAsyncParseAvailable(AsyncTestCase):
 
 
 # True start main parsing class.
+# Run after filling 'products' table from test_update_products() and test_update_prices() or uncomment these cases
 @skipIf(SKIP, 'skip main page parsing')
 class TestMain(TestCase):
 
@@ -185,12 +186,18 @@ class TestMain(TestCase):
         self.assertTrue(solution)
 
     def test_update_prices(self):
-        main_page = Main('Asics')
+        main_page = Main('Brooks')
+        # uncomment the lines below if 'products' table is empty (if this brand does not exist)
+        # solution = main_page.update_prices_table()
+        # self.assertTrue(solution)
         solution = main_page.update_prices_table()
         self.assertTrue(solution)
 
     def test_update_instock(self):
         main_page = Main('Saucony')
+        # uncomment the lines below if 'products' table is empty (if this brand does not exist)
+        # solution = main_page.update_instock_table()
+        # self.assertTrue(solution)
         solution = main_page.update_instock_table()
         self.assertTrue(solution)
 
@@ -202,6 +209,7 @@ class TestDb(TestCase):
     model Product mapping to 'products' table in database
     model Prices mapping to 'prices' table
     model InstockNagornaya mapping to 'instock_nagornaya' table
+    Use after filling all working tables. See README.txt or main.py
     """
 
     def __init__(self, *args, **quargs):

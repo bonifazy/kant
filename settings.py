@@ -4,18 +4,20 @@
 # Additional print() extra info about parsing or working with database
 DEBUG = True
 
-# Starting rating (updating) for items, this prices and this availability (sizes) of products, prices, instock_nagornaya
-# Normal state rating: 4
-RATING = 4
+# Starting rating (updating) for items, this prices and this availability (sizes) of
+# 'products', 'prices', 'instock_...' tables
+# Normal state rating: 1
+# Not in stock rating: 0
+# Updated status rating: increment of current
+RATING = 1
 
 #            for: 'main.py'
 #
 # Similar recording format as in the size upload from AVAILABLE request
 SHOPS = ('Nagornaya', 'Timiryazevskaya', 'TeplyStan', 'Altufevo')
 
-
 # Brand names to distribute main description items to starting addition to 'products' table and availability to
-# 'instock' table more correctly
+# 'instock' tables more correctly
 BRANDS = ['Asics', 'Saucony', 'Mizuno', 'Hoka', 'Adidas', 'Salomon', 'Brooks', 'On', '361°', 'Raidlight']
 
 # Links to append and update items, prices and avalaibility items-- running shoes

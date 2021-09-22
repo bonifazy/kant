@@ -14,11 +14,11 @@ class Parser:
     @staticmethod
     async def parse_main(urls: list, finish: int) -> list:
 
-        async def main_page_urls(url_: str, params_: int) -> list:
+        async def main_page_urls(_url: str, _params: int) -> list:
 
             urls = list()
             async with aiohttp.ClientSession() as session:
-                async with session.get(url_, params={'PAGEN_1': params_}) as response:
+                async with session.get(_url, params={'PAGEN_1': _params}) as response:
                     html = await response.text()
             if "kant__catalog__item" in html:  # find urls from all shoes items on page
                 tree = lxml_html.fromstring(html)
@@ -60,8 +60,8 @@ class Parser:
             for pagination in range(1, finish+1):  # go for pages of each item url
                 if DEBUG:
                     # progress bar
-                    print('\r{}, {}/ {} progress. Now {} page of {}\r'.format(
-                        tac(), i+1, all_urls, pagination, page_url), end='')
+                    print('\r{}, progress: {}/ {}. Now {}-th page of {}\r'.format(
+                        tac(), i+1, all_urls, pagination, page_url[20:]), end='')
                 tasks.append(asyncio.create_task(main_page_urls(page_url, pagination)))
                 if len(tasks) == chunk or pagination == finish:
                     new_urls = await asyncio.gather(*tasks)
@@ -105,17 +105,17 @@ class Parser:
         return items info by list of tuples
         """
 
-        async def parse(url_: str, timestamp_: str) -> tuple:
+        async def parse(_url: str, _timestamp: str) -> tuple:
             """
             Parsed url of item by aiohttp.ClientSession.get and lxml.html
             return tuple of full item info
             """
             async with aiohttp.ClientSession() as session:
-                async with session.get(url_) as response:
+                async with session.get(_url) as response:
                     html = await response.text()
             if not html:
-                return None, None  # output need tuple return
-            code = brand = model = img = rating = None
+                return None, None  # output need tuple return, full description item card
+            code = brand = model = img = None
             age = gender = article = season = use = pronation = ''
             year = 0
             tree = lxml_html.fromstring(html)
@@ -181,12 +181,13 @@ class Parser:
                     model = model[2:]
                 # end special Hoka
                 # TODO more specific setting for other brands or other keys or agregate more column to one in future
-                rating = RATING
-            return code, brand, model, url_, img, age, gender, year, use, pronation, article, season, rating, timestamp_
+
+            return code, brand, model, _url, img, age, gender, year, use, pronation, article, season, RATING, _timestamp
 
         # check urls content on correct with prev call func parse_main.main_page_urls
         if type(urls) is not list:
             raise TypeError
+        # check url format
         if not urls[0].startswith('https://www.kant.ru'):
             raise ValueError
         if DEBUG:
@@ -230,9 +231,11 @@ class Parser:
 
             return code, price
 
+        # check correct income data, types of pairs: '(code, url)'
         if not (type(codes_urls) is list and type(codes_urls[0]) is tuple and type(codes_urls[0][0]) is int
-                and type(codes_urls[0][1])):
+                and type(codes_urls[0][1]) is str):
             raise TypeError
+        # check correct income data, values of codes and format url
         if not (100_000 < codes_urls[0][0] < 9_999_999 and codes_urls[0][1].startswith('https://www.kant.ru/')):
             raise ValueError
         tasks = list()
@@ -260,10 +263,10 @@ class Parser:
     @staticmethod
     async def parse_available(codes: list)-> list:
 
-        async def parse_instock(code_: int, instock_code_: int) -> tuple:
+        async def parse_instock(_code: int, _instock_code: int) -> tuple:
 
             async with aiohttp.ClientSession() as session:
-                async with session.get(AVAILABLE, params={'ID': instock_code_}) as response:
+                async with session.get(AVAILABLE, params={'ID': _instock_code}) as response:
                     html = await response.text()
             if not html:
                 return None, None
@@ -301,11 +304,19 @@ class Parser:
                 table = tables[table_index]
                 table_index += 1
                 tr = table.xpath("tr")
+
                 for row in tr:
                     row_list = row.text_content().split()
                     row_count = len(row_list)
                     if row_count == 2 or row_count == 3:  # size and availability found!
                         size_temp = row_list[0].lower()
+
+                        # special for 'Hoka' brand:
+                        #  incoming size format: US:11/12
+                        if '/' in size_temp:
+                            size_temp = size_temp.partition('/')[0]
+                        # end special for 'Hoka'
+
                         size = None
                         # sizes to database oriented (converter) to US size
                         if size_temp.startswith('us'):
@@ -316,12 +327,12 @@ class Parser:
                         # junior size
                         elif size_temp.startswith('k'):
                             size = float(size[1:])
-                        # TODO convert to US size!
+                        # TODO convert to US size!  Junior shoes, as usual
                         if size_temp.startswith('eur'):
                             size = float(size_temp.split(':')[1].replace(',', '.', 1))
                         in_stock[shop].append((size, int(row_list[1]) if row_count == 2 else int(row_list[2])))
 
-            return code_, in_stock
+            return _code, in_stock
 
         # correct data, for testing
         item = codes[0]
@@ -339,11 +350,11 @@ class Parser:
             tasks.append(asyncio.create_task(parse_instock(code, instock_code)))
             if len(tasks) == CHUNK or i+1 == count_codes:
                 if DEBUG:
-                    print('\r{} sec, {}/ {}: {}\r'.format(tac(), i+1, count_codes, code), end='')
+                    print('\r{}, {}/ {} items; current code: {}\r'.format(tac(), i+1, count_codes, code), end='')
                 new = await asyncio.gather(*tasks)
                 new = [i for i in new if i[0] is not None]
                 products.extend(new)
-                await asyncio.sleep(TIMEOUT * 0.5)  # get tiny html, so reduce timeout, since the load is lower
+                await asyncio.sleep(TIMEOUT * 0.5)  # get tiny html (like json), so reduce timeout to faster loading
                 tasks = list()
         if DEBUG:
             print('>>> End parse_available on {} sec. Parsed {} items.\n'.format(tac(), len(products)))

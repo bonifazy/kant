@@ -2,7 +2,7 @@ import sqlite3
 import os.path
 from pathlib import Path
 
-from settings import DB_NAME, RATING, DEBUG
+from settings import SHOPS, DB_NAME, RATING, DEBUG
 
 
 class SQLite:
@@ -16,10 +16,18 @@ class SQLite:
     -- test_... : to test structure and consistency tables and data (only read);
     """
 
+    # protection from double connectors to database. sqlite3 module don't support 2 and more parallel connections
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(SQLite, cls).__new__(cls)
+
+        return cls.instance
+
     def __init__(self):
-        parent_dir = Path(__file__).resolve().parent  # to real path to 'db.sqlite3' file
+        # to real path to 'db.sqlite3' file. If database file should be a parent dir,
+        # set parent_dir = Path(__file__).resolve().parent.parent
+        parent_dir = Path(__file__).resolve().parent
         self.db = os.path.join(parent_dir, DB_NAME)  # path + file with any OS
-        print()
         if os.path.isfile(self.db):
             self.conn = sqlite3.connect(self.db)
             self.cur = self.conn.cursor()
@@ -28,7 +36,7 @@ class SQLite:
         else:
             self.db = None  # re- forward to main.Main(). Look functionality on Main() class
             if DEBUG:
-                print('No access to database. :-(\nEdit DB_NAME in settings.py')
+                print('No access to database. :-(\nEdit DB_NAME in settings.py or edit SQLite.parent_dir correctly.')
         self.brand = None  # may be this parameter will be replaced later from main.Main.__init__()
         # if self.brand was recieved from main.Main(brand='your_working_brand_name'), in each methods
         # from this SQLite() class, request to database will be only apply
@@ -39,6 +47,7 @@ class SQLite:
         self.close()
 
     def close(self):
+
         if hasattr(self, 'cur') and hasattr(self, 'conn'):
             self.cur.close()
             self.conn.close()
@@ -68,13 +77,24 @@ class SQLite:
         self.conn.commit()
         return self.cur.rowcount
 
-    def to_instock_nagornaya(self, instock: list):
+    def to_instock(self, shop, instock: list):
         """
         Update each size (its count availability and its update) of each item ('code_id' column) from
         'instock_nagornaya' table
         """
 
-        sql = "INSERT INTO instock_nagornaya (code_id, size, count, timestamp, rating) VALUES (?,?,?,?,?);"
+        table = ''
+        if shop == SHOPS[0]:
+            table = 'instock_nagornaya'
+        elif shop == SHOPS[1]:
+            table = 'instock_timiryazevskaya'
+        elif shop == SHOPS[2]:
+            table = 'instock_teply_stan'
+        elif shop == SHOPS[3]:
+            table = 'instock_altufevo'
+
+        if table:
+            sql = "INSERT INTO '{}' (code_id, size, count, timestamp, rating) VALUES (?,?,?,?,?);".format(table)
         self.cur.executemany(sql, instock)
         self.conn.commit()
         return self.cur.rowcount
@@ -93,6 +113,9 @@ class SQLite:
         return urls
 
     def get_products_codes_for_urls(self, urls):
+        """
+        Get the products code from its link
+        """
 
         self.cur.execute("SELECT code FROM products WHERE url IN ('{}');".format("','".join(urls)))
         codes = self.cur.fetchall()
@@ -100,7 +123,7 @@ class SQLite:
 
     def get_products_code_url(self):
         """
-        Get pairs code (unic), url (unic) to operate (update or add new) 'prices' and 'instock_nagornaya' tables
+        Get pairs code (unic), link (unic) to operate (update or add new) 'prices' and 'instock_nagornaya' tables
         """
 
         if self.brand is not None:
@@ -113,6 +136,7 @@ class SQLite:
 
     def get_products_urls(self):
         """
+        Get the product link
         Need to operate 'products' table changes of items
         """
 
@@ -126,7 +150,7 @@ class SQLite:
 
     def get_last_update_prices(self):
         """
-        Return last update price for each item code
+        Get last update actual price of the product by its code
         """
 
         if self.brand is not None:
@@ -141,37 +165,70 @@ class SQLite:
         self.cur.execute(sql)
         return self.cur.fetchall()
 
-    def get_instock_nagornaya_last_update(self):
+    def get_instock_last_update(self, shop):
+        """
+        Get actual info on the size and availability of the products
+        """
 
-        if self.brand is not None:
+        table = ''
+        if shop == SHOPS[0]:
+            table = 'instock_nagornaya'
+        elif shop == SHOPS[1]:
+            table = 'instock_timiryazevskaya'
+        elif shop == SHOPS[2]:
+            table = 'instock_teply_stan'
+        elif shop == SHOPS[3]:
+            table = 'instock_altufevo'
+
+        if self.brand is not None and table:
             sql = "SELECT p.code, i.size, i.count, i.timestamp, i.rating " \
-                  "FROM instock_nagornaya AS i, products AS p " \
+                  "FROM '{}' AS i, products AS p " \
                   "ON p.code=i.code_id " \
                   "WHERE p.brand = '{}' AND i.rating >= {} " \
                   "GROUP BY i.code_id, i.size " \
-                  "ORDER BY -MAX(i.rating);".format(self.brand, RATING)
-        else:
+                  "ORDER BY -MAX(i.rating);".format(table, self.brand, RATING)
+        elif self.brand is None and table:
             sql = "SELECT code_id, size, count, timestamp, rating " \
-                  "FROM instock_nagornaya " \
+                  "FROM '{}' " \
                   "WHERE rating >= {} " \
                   "GROUP BY code_id, size " \
-                  "ORDER BY -MAX(rating);".format(RATING)
-        self.cur.execute(sql.format(RATING))
+                  "ORDER BY -MAX(rating);".format(table, RATING)
+        self.cur.execute(sql)
         return self.cur.fetchall()
 
-    def get_instock_codes_with_0_count(self):
-        if self.brand is not None:
-            sql = "SELECT code_id FROM instock_nagornaya WHERE brand = '{}' AND count = 0 GROUP BY code_id;".format(
-                self.brand)
-            sql = "SELECT code_id FROM instock_nagornaya WHERE count = 0 GROUP BY code_id;"
+    def get_instock_codes_with_0_count(self, shop):
+        """
+        Get products that are not in stock
+        """
+
+        table = ''
+        if shop == SHOPS[0]:
+            table = 'instock_nagornaya'
+        elif shop == SHOPS[1]:
+            table = 'instock_timiryazevskaya'
+        elif shop == SHOPS[2]:
+            table = 'instock_teply_stan'
+        elif shop == SHOPS[3]:
+            table = 'instock_altufevo'
+
+        if self.brand is not None and table:
+            sql = "SELECT i.code_id " \
+                  "FROM products AS p, '{}' AS i " \
+                  "WHERE p.brand = '{}' AND i.count = 0 " \
+                  "GROUP BY i.code_id;".format(
+                table, self.brand)
+        elif self.brand is None and table:
+            sql = "SELECT code_id FROM '{}' WHERE count = 0 GROUP BY code_id;".format(table)
+        self.cur.execute(sql)
+
         return self.cur.fetchall()
 
-    def update_products_rating_to_1(self, urls):
+    def update_products_rating_to_0(self, urls):
         """
         Sets low rating for items that is not in stock
         """
 
-        sql = "UPDATE products SET rating = 1 WHERE url IN ('{}');".format("','".join(urls))
+        sql = "UPDATE products SET rating = 0 WHERE url IN ('{}');".format("','".join(urls))
         self.cur.execute(sql)
         self.conn.commit()
         return self.cur.fetchall()
@@ -212,6 +269,6 @@ if __name__ == '__main__':
     database = SQLite()
 
     if hasattr(database, 'conn'):
-        print('Connect to db is ok.')
+        print('Connection is open.')
     else:
         print('Problem to database connection.')  # close any third- party working SQLite clients and retry!
