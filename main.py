@@ -3,14 +3,16 @@
 import time
 import asyncio
 import sys
+import os.path
 from aiohttp import ClientConnectionError
+from pathlib import Path
 
 from db import SQLite
 from parser import Parser
-from settings import DEBUG, RATING, BRANDS_URLS, SHOPS
+from settings import DEBUG, RATING, BRANDS_URLS, SHOPS, JSON
 
 
-# support print to testing full app functionality, include 'db' и 'parser' modules
+# support print to testing full app functionality, include 'db' and 'parser' modules
 if DEBUG:
     tic = lambda: time.time()
     now = tic()
@@ -26,7 +28,7 @@ class Main:
     methods.
     update_products_table() fills the 'products' table from db and monitors its consistency
     update_prices_table() fills and monitors 'prices' table
-    update_instock_table() fills and monitors 'instock_nagornaya' table
+    update_instock_table() fills and monitors all 'instock_...' tables
     """
 
     def __init__(self, brand=None):
@@ -305,6 +307,72 @@ class Main:
 
         return True  # if that's all ok
 
+    def export(self, to='csv'):
+        """
+        Serialized and export to file for connect to marketplace API and retail services ('InSales', example).
+        'to' parameter may be:
+            'json'-- export to json file
+            'xml'-- export to xml file
+            'csv'-- export to csv file
+        """
+
+        # real path to json file. If json file should be a parent dir,
+        # set parent_dir = Path(__file__).resolve().parent.parent
+        parent_dir = Path(__file__).resolve().parent
+
+        if to == 'json':
+
+            import json
+            file_name = os.path.join(parent_dir, JSON)  # path + file with any OS
+
+            card_description = dict()
+            for card in self.db.export_card_and_price():
+                code = card[0]
+                card_description[code] = dict()
+                item_available = self.db.export_available(code)
+                if item_available:
+                    card_description[code]['code'] = card[0]
+                    card_description[code]['model'] = card[1]
+                    card_description[code]['brand'] = card[2]
+                    card_description[code]['price'] = card[3]
+                    card_description[code]['url'] = card[4]
+                    card_description[code]['img'] = card[5]
+                    card_description[code]['age'] = card[6]
+                    card_description[code]['gender'] = card[7]
+                    card_description[code]['year'] = card[8]
+                    card_description[code]['use'] = card[9]
+                    card_description[code]['pronation'] = card[10]
+                    card_description[code]['article'] = card[11]
+                    card_description[code]['season'] = card[12]
+                    card_description[code]['instock'] = item_available
+                else:
+                    del card_description[code]  # if empty item availability
+
+            if card_description:
+                with open(file_name, 'w') as f:
+                    json.dump(card_description, f)
+                    if DEBUG:
+                        print('json file is updated!')
+                    return True
+            else:
+                print("Database is empty or no database file. Run Main.update_...() methods to filling database, "
+                      "then use this method to export data.")
+                return False
+
+        elif to == 'xml':
+            # TODO make xml export to file
+            pass
+
+        elif to == 'csv':
+            # TODO make csv export to file
+            pass
+
+        else:
+            if DEBUG:
+                print("Check 'to' parameter on 'Main.export()' method")
+
+        return False
+
 
 def manager(load_prods=False, load_prices=False, load_instock=False):
     """
@@ -363,9 +431,9 @@ if __name__ == "__main__":
     # Second method to work with project:
     #
     # Main() -- is main connector to parser and to database and syncronizer between them
-    # all actual working brands in settings.BRANDS, as optional
+    # all actual working brands in settings.BRANDS, as optional.
     # uncomment line below to work only this brand from www.kant.ru
-    # page = Main('Adidas')
+    # page = Main('On')
     #
     # or uncomment this line below to work with full running shoes items from www.kant.ru
     # page = Main()
@@ -374,6 +442,10 @@ if __name__ == "__main__":
     # page.update_prices_table()  # uncomment to update 'prices' table
     # page.update_instock_table()  # uncomment to update 'instock_nagornaya', 'instock_altufevo', ... instock tables
     # uncomment 3 strings above to update all tables immediately
+    #
+    # TODO
+    # Export/ serialized to json/ xml/ csv
+    # page.export(to='json')
 
     if DEBUG:
         print(tac(), 'worked app.')

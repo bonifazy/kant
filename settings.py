@@ -35,6 +35,9 @@ BRANDS_URLS = [
     'https://www.kant.ru/brand/raidlight/products/'
 ]
 
+# json file to export card description (an optional)
+JSON = 'card.json'
+
 #
 #            for: 'db.py'
 #

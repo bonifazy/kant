@@ -14,6 +14,7 @@ class SQLite:
     -- get_... : to get the values/ data (only read);
     -- update_... : to update already recorded data (only rewrite);
     -- test_... : to test structure and consistency tables and data (only read);
+    -- export_... serialized and export items card description to json, xml, csv
     """
 
     # protection from double connectors to database. sqlite3 module don't support 2 and more parallel connections
@@ -32,7 +33,7 @@ class SQLite:
             self.conn = sqlite3.connect(self.db)
             self.cur = self.conn.cursor()
             if DEBUG:
-                print(self.db, '\nDatabase is working!')
+                print(self.db, '\nDatabase is working.')
         else:
             self.db = None  # re- forward to main.Main(). Look functionality on Main() class
             if DEBUG:
@@ -53,7 +54,7 @@ class SQLite:
             self.conn.close()
 
             if DEBUG:
-                print('Close database!')
+                print('Close database.')
 
     def to_products(self, products: list):
         """
@@ -264,10 +265,81 @@ class SQLite:
         self.cur.execute(sql)
         return self.cur.fetchone()
 
+    def export_card_and_price(self, code=None):
+        """
+        Export to json, xml, csv formats. Used by Main.export()
+        """
+
+        # single card description by code of item
+        if code is not None:
+            sql = "SELECT p.code, p.model, p.brand, pri.price, p.url, p.img, p.age, p.gender, p.year, p.use, " \
+                  "p.pronation, p.article, p.season " \
+                  "FROM products AS p, prices AS pri " \
+                  "ON p.code=pri.code_id " \
+                  "WHERE code='{}' " \
+                  "GROUP BY  pri.code_id " \
+                  "HAVING MAX(pri.rating);".format(code)
+            self.cur.execute(sql)
+
+            return self.cur.fetchall()
+
+        # multiple card description by brand
+        if self.brand is not None:
+            sql = "SELECT p.code, p.model, p.brand, pri.price, p.url, p.img, p.age, p.gender, p.year, p.use, " \
+                  "p.pronation, p.article, p.season " \
+                  "FROM products AS p, prices AS pri " \
+                  "ON p.code=pri.code_id " \
+                  "WHERE brand='{}' " \
+                  "GROUP BY  pri.code_id " \
+                  "HAVING MAX(pri.rating);".format(self.brand)
+        else:
+            # multiple card description of full database
+            sql = "SELECT p.code, p.model, p.brand, pri.price, p.url, p.img, p.age, p.gender, p.year, p.use, " \
+                    "p.pronation, p.article, p.season " \
+                    "FROM products AS p, prices AS pri " \
+                    "ON p.code=pri.code_id " \
+                    "GROUP BY  pri.code_id " \
+                    "HAVING MAX(pri.rating);"
+        self.cur.execute(sql)
+        return self.cur.fetchall()
+
+    def export_available(self, code):
+        """
+        Additional description of product (by code) availability
+        """
+
+        available = dict()
+        for shop in SHOPS:
+            table = ''
+            if shop == SHOPS[0]:
+                table = 'instock_nagornaya'
+            elif shop == SHOPS[1]:
+                table = 'instock_timiryazevskaya'
+            elif shop == SHOPS[2]:
+                table = 'instock_teply_stan'
+            elif shop == SHOPS[3]:
+                table = 'instock_altufevo'
+
+            sql = "SELECT size, count " \
+                    "FROM {} " \
+                    "WHERE code_id={} " \
+                    "GROUP BY size " \
+                    "HAVING MAX(rating) AND count <> 0;".format(table, code)
+            self.cur.execute(sql)
+            response = self.cur.fetchall()
+            if response:
+                available['_comment'] = 'format: offline_Moscow_store: {size_in_stock: its_count, next_size: its_count}'
+                instock = {size: count for size, count in response}
+                available[shop] = instock
+
+            if not available:
+                return None
+
+        return available
+
 
 if __name__ == '__main__':
     database = SQLite()
-
     if hasattr(database, 'conn'):
         print('Connection is open.')
     else:

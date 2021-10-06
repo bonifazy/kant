@@ -7,7 +7,7 @@ from db import SQLite
 from settings import SHOPS, BRANDS_URLS
 
 SKIP = False  # set False to check all tests
-# more cases relevant only in sep- oct 2021
+# more cases relevant only in oct- nov 2021
 
 
 @skipIf(SKIP, 'skip parse_main')
