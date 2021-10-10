@@ -276,7 +276,7 @@ class SQLite:
                   "p.pronation, p.article, p.season " \
                   "FROM products AS p, prices AS pri " \
                   "ON p.code=pri.code_id " \
-                  "WHERE code='{}' " \
+                  "WHERE code='{}' and pri.price <> 0 " \
                   "GROUP BY  pri.code_id " \
                   "HAVING MAX(pri.rating);".format(code)
             self.cur.execute(sql)
@@ -289,7 +289,7 @@ class SQLite:
                   "p.pronation, p.article, p.season " \
                   "FROM products AS p, prices AS pri " \
                   "ON p.code=pri.code_id " \
-                  "WHERE brand='{}' " \
+                  "WHERE brand='{}' AND pri.price <> 0 " \
                   "GROUP BY  pri.code_id " \
                   "HAVING MAX(pri.rating);".format(self.brand)
         else:
@@ -298,6 +298,7 @@ class SQLite:
                     "p.pronation, p.article, p.season " \
                     "FROM products AS p, prices AS pri " \
                     "ON p.code=pri.code_id " \
+                    "WHERE pri.price <> 0 " \
                     "GROUP BY  pri.code_id " \
                     "HAVING MAX(pri.rating);"
         self.cur.execute(sql)

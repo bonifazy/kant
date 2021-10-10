@@ -9,7 +9,7 @@ from pathlib import Path
 
 from db import SQLite
 from parser import Parser
-from settings import DEBUG, RATING, BRANDS_URLS, SHOPS, JSON
+from settings import DEBUG, RATING, BRANDS_URLS, SHOPS
 
 
 # support print to testing full app functionality, include 'db' and 'parser' modules
@@ -323,7 +323,8 @@ class Main:
         if to == 'json':
 
             import json
-            file_name = os.path.join(parent_dir, JSON)  # path + file with any OS
+            from settings import JSON_FILE
+            file_name = os.path.join(parent_dir, JSON_FILE)  # path + file with any OS
 
             card_description = dict()
             for card in self.db.export_card_and_price():
@@ -352,7 +353,7 @@ class Main:
                 with open(file_name, 'w') as f:
                     json.dump(card_description, f)
                     if DEBUG:
-                        print('json file is updated!')
+                        print('JSON file is updated!')
                     return True
             else:
                 print("Database is empty or no database file. Run Main.update_...() methods to filling database, "
@@ -364,8 +365,27 @@ class Main:
             pass
 
         elif to == 'csv':
-            # TODO make csv export to file
-            pass
+
+            import csv
+            from settings import CSV_FILE
+            file_name = os.path.join(parent_dir, CSV_FILE)  # path + file with any OS
+
+            card_fields = ('Код', 'Модель', 'Бренд', 'Стоимость', 'Ссылка', 'Картинка', 'Возраст', 'Пол', 'Год',
+                'Назначение', 'Пронация', 'Артикул', 'Сезон')
+            card_description = self.db.export_card_and_price()
+            if card_description:
+                with open(file_name, 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(card_fields)
+                    writer.writerows(card_description)
+                if DEBUG:
+                    print('CSV file is updated!')
+                return True
+            else:
+                print("Database is empty or no database file. Run Main.update_...() methods to filling database, "
+                      "then use this method to export data.")
+
+                return False
 
         else:
             if DEBUG:
@@ -433,7 +453,7 @@ if __name__ == "__main__":
     # Main() -- is main connector to parser and to database and syncronizer between them
     # all actual working brands in settings.BRANDS, as optional.
     # uncomment line below to work only this brand from www.kant.ru
-    # page = Main('On')
+    # page = Main('Adidas')
     #
     # or uncomment this line below to work with full running shoes items from www.kant.ru
     # page = Main()
@@ -443,9 +463,9 @@ if __name__ == "__main__":
     # page.update_instock_table()  # uncomment to update 'instock_nagornaya', 'instock_altufevo', ... instock tables
     # uncomment 3 strings above to update all tables immediately
     #
-    # TODO
+    # TODO complete xml export
     # Export/ serialized to json/ xml/ csv
-    # page.export(to='json')
+    # page.export(to='csv')
 
     if DEBUG:
         print(tac(), 'worked app.')

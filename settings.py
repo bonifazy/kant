@@ -36,7 +36,10 @@ BRANDS_URLS = [
 ]
 
 # json file to export card description (an optional)
-JSON = 'card.json'
+JSON_FILE = 'card.json'
+
+# csv file to export card description (as default in 'to' parameter from export() method)
+CSV_FILE = 'card.csv'
 
 #
 #            for: 'db.py'

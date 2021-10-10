@@ -93,7 +93,7 @@ class Parser:
         url-- this func argv
         img-- url to item img, small pic
         age-- 'взрослый', 'юниор', 'детский' and may be smth else
-        gender-- ''
+        gender-- 'мужской', 'женский', 'man', 'woman', , 'унисекс', 'для мальчика', 'для девочек'
         year-- '2020', '2021', '2020-2021', '20-2021' and may be smth else
         use-- 'грунт', 'асфальт', 'снег/ лед', may be smth else
         pronation-- 'нейтральная', 'нейтральная/ нейтральная', 'с поддержкой' and more
