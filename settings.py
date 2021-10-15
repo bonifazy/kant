@@ -41,6 +41,9 @@ JSON_FILE = 'card.json'
 # csv file to export card description (as default in 'to' parameter from export() method)
 CSV_FILE = 'card.csv'
 
+# csv file to export card description (as default in 'to' parameter from export() method)
+XML_FILE = 'card.xml'
+
 #
 #            for: 'db.py'
 #
@@ -50,11 +53,11 @@ DB_NAME = 'db.sqlite3'
 #
 #            for: 'parser.py'
 #
-# Timeout between parallel page loads
-TIMEOUT = 0.2
+# Timeout between parallel page loads, sec: as usual from 0.2 to 1 sec.
+TIMEOUT = 1
 
-# Count of parallel loads per one async working request
-CHUNK = 10
+# Count of parallel loads per one async working request, urls to parallel work: as usual from 5 to 30.
+CHUNK = 20
 
 # Link to get size, this count of items on each running shoes by this code
 # response return json of all departments of kant.ru local shops with size, count and id of offline shop by unic id

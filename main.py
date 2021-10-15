@@ -329,9 +329,9 @@ class Main:
             card_description = dict()
             for card in self.db.export_card_and_price():
                 code = card[0]
-                card_description[code] = dict()
                 item_available = self.db.export_available(code)
                 if item_available:
+                    card_description[code] = dict()
                     card_description[code]['code'] = card[0]
                     card_description[code]['model'] = card[1]
                     card_description[code]['brand'] = card[2]
@@ -345,9 +345,7 @@ class Main:
                     card_description[code]['pronation'] = card[10]
                     card_description[code]['article'] = card[11]
                     card_description[code]['season'] = card[12]
-                    card_description[code]['instock'] = item_available
-                else:
-                    del card_description[code]  # if empty item availability
+                    card_description[code]['available'] = item_available
 
             if card_description:
                 with open(file_name, 'w') as f:
@@ -361,8 +359,58 @@ class Main:
                 return False
 
         elif to == 'xml':
-            # TODO make xml export to file
-            pass
+
+            from lxml import etree
+            from settings import XML_FILE
+            file_name = os.path.join(parent_dir, XML_FILE)  # path + file with any OS
+
+            products = etree.Element('products')
+            products.set('source', 'www.kant.ru')
+            products.set('category', 'running shoes')
+
+            for card in self.db.export_card_and_price():
+
+                available = self.db.export_available(card[0])
+                if available:
+                    code = etree.SubElement(products, 'code')
+                    code.set('id', str(card[0]))
+
+                    model = etree.SubElement(code, 'model').text = card[1]
+                    brand = etree.SubElement(code, 'brand').text = card[2]
+                    price = etree.SubElement(code, 'price').text = str(card[3])
+                    url = etree.SubElement(code, 'url').text = card[4]
+                    img = etree.SubElement(code, 'img').text = card[5]
+                    age = etree.SubElement(code, 'age').text = card[6]
+                    gender = etree.SubElement(code, 'gender').text = card[7]
+                    year = etree.SubElement(code, 'year').text = str(card[8])
+                    use = etree.SubElement(code, 'use').text = card[9]
+                    pronation = etree.SubElement(code, 'pronation').text = card[10]
+                    article = etree.SubElement(code, 'article').text = card[11]
+                    season = etree.SubElement(code, 'season').text = card[12]
+
+                    instock = etree.SubElement(code, 'available')
+                    shops = dict()
+                    for shop in SHOPS:
+                        if shop in available.keys():
+                            shops[shop] = etree.SubElement(instock, shop)
+                            for item in available[shop].items():
+                                node = etree.SubElement(shops[shop], 'item')
+                                size = etree.SubElement(node, 'size').text = str(item[0])
+                                count = etree.SubElement(node, 'count').text = str(item[1])
+
+            if products.getchildren():
+
+                tree = etree.ElementTree(products)
+                tree.write(file_name, pretty_print=True, xml_declaration=True, encoding='utf-8')
+                if DEBUG:
+                    print('XML file is updated!')
+                return True
+
+            else:
+
+                print("Database is empty or no database file. Run Main.update_...() methods to filling database, "
+                      "then use this method to export data.")
+                return False
 
         elif to == 'csv':
 
@@ -391,7 +439,7 @@ class Main:
             if DEBUG:
                 print("Check 'to' parameter on 'Main.export()' method")
 
-        return False
+            return False
 
 
 def manager(load_prods=False, load_prices=False, load_instock=False):
@@ -453,7 +501,7 @@ if __name__ == "__main__":
     # Main() -- is main connector to parser and to database and syncronizer between them
     # all actual working brands in settings.BRANDS, as optional.
     # uncomment line below to work only this brand from www.kant.ru
-    # page = Main('Adidas')
+    # page = Main('On')
     #
     # or uncomment this line below to work with full running shoes items from www.kant.ru
     # page = Main()
