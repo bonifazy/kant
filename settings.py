@@ -54,7 +54,7 @@ DB_NAME = 'db.sqlite3'
 #            for: 'parser.py'
 #
 # Timeout between parallel page loads, sec: as usual from 0.2 to 1 sec.
-TIMEOUT = 1
+TIMEOUT = 0.4
 
 # Count of parallel loads per one async working request, urls to parallel work: as usual from 5 to 30.
 CHUNK = 20

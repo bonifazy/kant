@@ -9,7 +9,7 @@ from pathlib import Path
 
 from db import SQLite
 from parser import Parser
-from settings import DEBUG, RATING, BRANDS_URLS, SHOPS
+from settings import DEBUG, RATING, BRANDS_URLS, SHOPS, BRANDS
 
 
 # support print to testing full app functionality, include 'db' and 'parser' modules
@@ -330,7 +330,7 @@ class Main:
             for card in self.db.export_card_and_price():
                 code = card[0]
                 item_available = self.db.export_available(code)
-                if item_available:
+                if item_available:  # if products in stock
                     card_description[code] = dict()
                     card_description[code]['code'] = card[0]
                     card_description[code]['model'] = card[1]
@@ -345,9 +345,9 @@ class Main:
                     card_description[code]['pronation'] = card[10]
                     card_description[code]['article'] = card[11]
                     card_description[code]['season'] = card[12]
-                    card_description[code]['available'] = item_available
+                    card_description[code]['available'] = item_available  # get shops and items available by code
 
-            if card_description:
+            if card_description:  # for a non- empty database
                 with open(file_name, 'w') as f:
                     json.dump(card_description, f)
                     if DEBUG:
@@ -371,22 +371,31 @@ class Main:
             for card in self.db.export_card_and_price():
 
                 available = self.db.export_available(card[0])
-                if available:
+                if available:  # if product in stock
                     code = etree.SubElement(products, 'code')
                     code.set('id', str(card[0]))
 
                     model = etree.SubElement(code, 'model').text = card[1]
                     brand = etree.SubElement(code, 'brand').text = card[2]
                     price = etree.SubElement(code, 'price').text = str(card[3])
-                    url = etree.SubElement(code, 'url').text = card[4]
-                    img = etree.SubElement(code, 'img').text = card[5]
-                    age = etree.SubElement(code, 'age').text = card[6]
-                    gender = etree.SubElement(code, 'gender').text = card[7]
-                    year = etree.SubElement(code, 'year').text = str(card[8])
-                    use = etree.SubElement(code, 'use').text = card[9]
-                    pronation = etree.SubElement(code, 'pronation').text = card[10]
-                    article = etree.SubElement(code, 'article').text = card[11]
-                    season = etree.SubElement(code, 'season').text = card[12]
+                    if card[4]:
+                        url = etree.SubElement(code, 'url').text = card[4]
+                    if card[5]:
+                        img = etree.SubElement(code, 'img').text = card[5]
+                    if card[6]:
+                        age = etree.SubElement(code, 'age').text = card[6]
+                    if card[7]:
+                        gender = etree.SubElement(code, 'gender').text = card[7]
+                    if card[8]:
+                        year = etree.SubElement(code, 'year').text = str(card[8])
+                    if card[9]:
+                        use = etree.SubElement(code, 'use').text = card[9]
+                    if card[10]:
+                        pronation = etree.SubElement(code, 'pronation').text = card[10]
+                    if card[11]:
+                        article = etree.SubElement(code, 'article').text = card[11]
+                    if card[12]:
+                        season = etree.SubElement(code, 'season').text = card[12]
 
                     instock = etree.SubElement(code, 'available')
                     shops = dict()
@@ -398,7 +407,7 @@ class Main:
                                 size = etree.SubElement(node, 'size').text = str(item[0])
                                 count = etree.SubElement(node, 'count').text = str(item[1])
 
-            if products.getchildren():
+            if products.getchildren():  # for a non- empty database
 
                 tree = etree.ElementTree(products)
                 tree.write(file_name, pretty_print=True, xml_declaration=True, encoding='utf-8')
@@ -421,7 +430,7 @@ class Main:
             card_fields = ('Код', 'Модель', 'Бренд', 'Стоимость', 'Ссылка', 'Картинка', 'Возраст', 'Пол', 'Год',
                 'Назначение', 'Пронация', 'Артикул', 'Сезон')
             card_description = self.db.export_card_and_price()
-            if card_description:
+            if card_description:  # for a non- empty database
                 with open(file_name, 'w', newline='') as f:
                     writer = csv.writer(f)
                     writer.writerow(card_fields)
@@ -442,17 +451,19 @@ class Main:
             return False
 
 
-def manager(load_prods=False, load_prices=False, load_instock=False):
+def manager():
     """
-    Manager to operate updating 3 functionality for tables by 3 methods
-    Main.update_products_table, Main.update_prices_table, Main.update_instock_table
+    Manager to operate updating 3 functionality for tables and 1 to export
+    Main.update_products_table(),
+    Main.update_prices_table(),
+    Main.update_instock_table(),
+    Main.export(),
     with call command line: python main.py with sys.args
+    for example: python main.py products
     """
 
     try_count = 3  # how many attempts to load page to parse
-    load_prods = load_prods
-    load_prices = load_prices
-    load_instock = load_instock
+    load_prods = load_prices = load_instock = export = target = None
     args = sys.argv
 
     if len(args) > 1:
@@ -460,13 +471,20 @@ def manager(load_prods=False, load_prices=False, load_instock=False):
             argv = argv.lower()
             if argv == 'products':
                 load_prods = True
-            if argv == 'prices':
+            elif argv == 'prices':
                 load_prices = True
-            if argv == 'instock':
+            elif argv == 'instock':
                 load_instock = True
+            elif argv == 'export':
+                export = True
+            elif argv == 'json':
+                target = 'json'
+            elif argv == 'xml':
+                target = 'xml'
+            elif argv == 'csv':
+                target = 'csv'
 
     page = Main()
-
     if hasattr(page, 'db'):  # normal connect to db
         for i in range(try_count):
             try:
@@ -479,6 +497,11 @@ def manager(load_prods=False, load_prices=False, load_instock=False):
             except ClientConnectionError as err:  # as usual may be on mobile connect, local testing, not production
                 print('ConnectionError. Reconnect..')
                 time.sleep(20)
+        if export:
+            if target is not None:
+                export = not page.export(target)
+            else:
+                export = not page.export()
 
 
 if __name__ == "__main__":
@@ -501,7 +524,7 @@ if __name__ == "__main__":
     # Main() -- is main connector to parser and to database and syncronizer between them
     # all actual working brands in settings.BRANDS, as optional.
     # uncomment line below to work only this brand from www.kant.ru
-    # page = Main('On')
+    # page = Main('Adidas')
     #
     # or uncomment this line below to work with full running shoes items from www.kant.ru
     # page = Main()
@@ -511,9 +534,8 @@ if __name__ == "__main__":
     # page.update_instock_table()  # uncomment to update 'instock_nagornaya', 'instock_altufevo', ... instock tables
     # uncomment 3 strings above to update all tables immediately
     #
-    # TODO complete xml export
-    # Export/ serialized to json/ xml/ csv
-    # page.export(to='csv')
+    # Export/ serialize to json/ xml/ csv
+    # page.export(to='xml')
 
     if DEBUG:
         print(tac(), 'worked app.')
