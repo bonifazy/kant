@@ -119,7 +119,7 @@ class Parser:
             age = gender = article = season = use = pronation = ''
             year = 0
             tree = lxml_html.fromstring(html)
-            running = False  # Точно ли это кроссовки?
+            running = False  # are the running shoes for sure?
             # commons attrs from xpath objs: values, text, xpath, text_content, keys, label, items, base, attrib
             for item in tree.xpath("//div[@class='kant__product__detail-item']"):  # product description card
                 column = item.xpath("span[1]/text()")[0]

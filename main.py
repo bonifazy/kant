@@ -29,6 +29,7 @@ class Main:
     update_products_table() fills the 'products' table from db and monitors its consistency
     update_prices_table() fills and monitors 'prices' table
     update_instock_table() fills and monitors all 'instock_...' tables
+    export() export data cards description to popular formats for marketplaces: json, xml or csv.
     """
 
     def __init__(self, brand=None):
@@ -499,9 +500,9 @@ def manager():
                 time.sleep(20)
         if export:
             if target is not None:
-                export = not page.export(target)
+                page.export(target)
             else:
-                export = not page.export()
+                page.export()
 
 
 if __name__ == "__main__":

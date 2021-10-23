@@ -1,10 +1,13 @@
+import os.path
+from os import remove
 from aiounittest import AsyncTestCase
 from unittest import TestCase, main, skipIf
+from pathlib import Path
 
 from parser import Parser
 from main import Main
 from db import SQLite
-from settings import SHOPS, BRANDS_URLS
+from settings import SHOPS, BRANDS_URLS, CSV_FILE, JSON_FILE, XML_FILE
 
 SKIP = False  # set False to check all tests
 # more cases relevant only in oct- nov 2021
@@ -212,8 +215,8 @@ class TestDb(TestCase):
     Use after filling all working tables. See README.txt or main.py
     """
 
-    def __init__(self, *args, **quargs):
-        super(TestDb, self).__init__(*args, **quargs)
+    def __init__(self, *args, **kwargs):
+        super(TestDb, self).__init__(*args, **kwargs)
         self.db = SQLite()
 
     def test_connect(self):
@@ -242,7 +245,7 @@ class TestDb(TestCase):
                         (int, int, str, int)
                         )  # true ordering
 
-    def test_instock_nagornaya(self):
+    def test_instock_nagornaya(self):  # others instock_... tables work similarly
         solution = self.db.test_instock_nagornaya()
         self.assertEqual(len(solution), 5)  # count of fields
         # InstockNagornaya 'instock_nagornaya' fields: code_id, size, count, timestamp, rating
@@ -251,6 +254,105 @@ class TestDb(TestCase):
                          )  # true ordering
         size_is_digit = (type(solution[1]) == float) or (type(solution[1]) == int)
         self.assertTrue(size_is_digit)
+
+    def test_export_card_and_price(self):
+        solution = self.db.export_card_and_price()
+        self.assertEqual(type(solution), list)
+        self.assertEqual(len(solution[0]), 13)
+        # Products 'products' fields: code, model, brand, price, url, img, age, gender, year, use, pronation, article,
+        #   season
+        self.assertEqual((type(solution[0][0]), type(solution[0][1]), type(solution[0][2]), type(solution[0][3]),
+                          type(solution[0][4]), type(solution[0][5]), type(solution[0][6]), type(solution[0][7]),
+                          type(solution[0][8]), type(solution[0][9]), type(solution[0][10]), type(solution[0][11]),
+                          type(solution[0][12])
+                          ),
+                         (int, str, str, int, str, str, str, str, int, str, str, str, str)
+                         )  # true ordering
+
+    def test_export_card_and_price_by_code(self):
+        solution = self.db.export_card_and_price(1646099)
+        self.assertEqual(type(solution), list)
+        self.assertEqual(len(solution[0]), 13)
+        # Products 'products' fields: code, model, brand, price, url, img, age, gender, year, use, pronation, article,
+        #   season
+        self.assertEqual((type(solution[0][0]), type(solution[0][1]), type(solution[0][2]), type(solution[0][3]),
+                          type(solution[0][4]), type(solution[0][5]), type(solution[0][6]), type(solution[0][7]),
+                          type(solution[0][8]), type(solution[0][9]), type(solution[0][10]), type(solution[0][11]),
+                          type(solution[0][12])
+                          ),
+                         (int, str, str, int, str, str, str, str, int, str, str, str, str)
+                         )  # true ordering
+
+    def test_export_availability(self):
+        solution = self.db.export_available(1646099)
+        self.assertTrue(type(solution), dict)  # real card description if ok or code is incorrect if Test Error happen
+        self.assertGreater(len(solution.keys()), 1)
+        for i in solution.items():
+            with self.subTest(case=i):
+                self.assertTrue(i[0] == '_comment' or i[0] in SHOPS)
+                value = i[1]
+                if type(value) == str:
+                    self.assertTrue(value.startswith('format'))  # comment finded
+                else:  # instock list finded
+                    self.assertEqual(type(value), dict)
+                    size = next(iter(value.items()))[0]
+                    self.assertTrue(1 < size < 15)
+                    count = next(iter(value.items()))[1]
+                    self.assertTrue(0 < count < 20)
+
+
+@skipIf(SKIP, 'skip test db')
+class TestExport(TestCase):
+    """
+    Test export card description to popular formats. Use after filling all working tables.
+    See README.txt or main.py
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TestExport, self).__init__(*args, **kwargs)
+        self.page = Main()
+        self.parent_dir = Path(__file__).resolve().parent
+
+    def test_export_csv(self):
+        # without 'to' parameter
+        self.csv_file = os.path.join(self.parent_dir, CSV_FILE)  # path + file with any OS
+        if os.path.isfile(self.csv_file):
+            remove(self.csv_file)
+        self.assertTrue(not os.path.isfile(self.csv_file))  # absolutely not on the disk
+        self.page.export()
+        self.assertTrue(os.path.isfile(self.csv_file))
+
+        # with 'to' parameter
+        if os.path.isfile(self.csv_file):
+            remove(self.csv_file)
+        self.assertTrue(not os.path.isfile(self.csv_file))  # absolutely not on the disk
+        self.page.export(to='csv')
+        self.assertTrue(os.path.isfile(self.csv_file))
+        if os.path.isfile(self.csv_file):
+            remove(self.csv_file)
+        self.assertTrue(not os.path.isfile(self.csv_file))  # absolutely not on the disk
+
+    def test_export_json(self):
+        self.json_file = os.path.join(self.parent_dir, JSON_FILE)
+        if os.path.isfile(self.json_file):
+            remove(self.json_file)
+        self.assertTrue(not os.path.isfile(self.json_file))  # absolutely not on the disk
+        self.page.export(to='json')
+        self.assertTrue(os.path.isfile(self.json_file))
+        if os.path.isfile(self.json_file):
+            remove(self.json_file)
+        self.assertTrue(not os.path.isfile(self.json_file))  # absolutely not on the disk
+
+    def test_export_xml(self):
+        self.xml_file = os.path.join(self.parent_dir, XML_FILE)
+        if os.path.isfile(self.xml_file):
+            remove(self.xml_file)
+        self.assertTrue(not os.path.isfile(self.xml_file))  # absolutely not on the disk
+        self.page.export(to='xml')
+        self.assertTrue(os.path.isfile(self.xml_file))
+        if os.path.isfile(self.xml_file):
+            remove(self.xml_file)
+        self.assertTrue(not os.path.isfile(self.xml_file))  # absolutely not on the disk
 
 
 if __name__ == "__main__":

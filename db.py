@@ -33,7 +33,7 @@ class SQLite:
             self.conn = sqlite3.connect(self.db)
             self.cur = self.conn.cursor()
             if DEBUG:
-                print(self.db, '\nDatabase is working.')
+                print('Database is working.')
         else:
             self.db = None  # re- forward to main.Main(). Look functionality on Main() class
             if DEBUG:
